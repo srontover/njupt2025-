@@ -85,7 +85,7 @@ def get_signal(img_by, HEIGHT, WIDTH, h_threshold, v_threshold):
             if abs(y_mid - global_corner[1]) < h_threshold and \
                 abs(x_mid - global_corner[0]) < v_threshold:
                 count += 1  # 符合阈值条件时计数器递增
-                time.sleep(0.5)  # 延时防误判
+                time.sleep(0.5)  # 延时跳过这次检测
                 
             if count % 3 == 0:  # 每3次有效检测返回信号
                 return 2                    
