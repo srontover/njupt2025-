@@ -1,5 +1,5 @@
 import cv2 as cv
-import numpy as npq
+import numpy as np
 import time
 
 
