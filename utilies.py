@@ -14,7 +14,7 @@ def follow_line(img_by, img_copy, HEIGHT, WIDTH, area_threshold, e_threshold):
         area_threshold : 有效轮廓的最小面积阈值
         e_threshold : 转向判断的误差阈值
     返回值：
-        0: 直行 | 1: 左转 | -1: 右转
+        0: 直行 | 1: 右转 | -1: 左转
     """
     # 区域初始化（左、中、右三区）
     x_start_right = 2*WIDTH//3  # 右侧区域起始X坐标（图像宽度2/3处）
