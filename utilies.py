@@ -60,19 +60,19 @@ def follow_line(img_by, img_copy, HEIGHT, WIDTH, area_threshold, e_threshold):
                 center_list.append([global_x, global_y])  # 记录全局坐标
 
     # 横向位置偏差计算
-    error1 = center_list[0][0] - center_list[1][0]  # 左区与中区中心点横向差
-    error2 = center_list[1][0] - center_list[2][0]  # 中区与右区中心点横向差
+    error1 = center_list[0][1] - center_list[1][1]  # 左区与中区中心点纵向差
+    error2 = center_list[1][1] - center_list[2][1]  # 中区与右区中心点纵向差
     error = (error1 + error2) / 2  # 平均偏差值
 
-    # 控制逻辑判断
+    # 控制逻辑判断（在小车朝图像向左前进的情况下）
     if abs(error) < e_threshold:  # 偏差在允许范围内
         return 0   # 维持直行
-    elif error > e_threshold:     # 整体向右偏移（需要左转修正）
+    elif error > e_threshold:     # 整体向左偏移（需要右转修正）
         return 1   
-    elif error < -e_threshold:    # 整体向左偏移（需要右转修正）
+    elif error < -e_threshold:    # 整体向右偏移（需要左转修正）
         return -1  
 
-def get_signal(img_by,img_copy, HEIGHT, WIDTH, h_threshold, v_threshold):
+def get_signal(img_by,img_copy, HEIGHT, WIDTH, h_threshold, v_threshold, area_threshold):
     """特殊信号检测函数
     参数：
         img_by       : 二值化输入图像
@@ -105,7 +105,7 @@ def get_signal(img_by,img_copy, HEIGHT, WIDTH, h_threshold, v_threshold):
     contours, _ = cv.findContours(img_upper, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
     for contour in contours:
         area = cv.contourArea(contour)
-        if area > 500:  # 过滤无效小轮廓
+        if area > area_threshold:  # 过滤无效小轮廓
             # 轮廓近似处理
             peri = cv.arcLength(contour, True)
             approx = cv.approxPolyDP(contour, 0.02*peri, True)
