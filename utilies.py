@@ -122,8 +122,84 @@ def get_signal(img_by,img_copy, HEIGHT, WIDTH, h_threshold, v_threshold, area_th
             
             # 三次有效匹配触发信号
             if count % 3 == 0:  
-                return 2                    
-            
+                return 2 
+
+def adjust_position(img_by, img_copy, HEIGHT, WIDTH, area_threshold):
+    """
+    位置调整检测函数
+    通过检测图像右侧不同区域的轮廓，判断当前车辆位置状态
+    
+    参数:
+        img_by: 二值化输入图像(黑白色)
+        img_copy: 用于绘制检测结果的彩色图像副本 
+        HEIGHT: 图像高度
+        WIDTH: 图像宽度
+        area_threshold: 有效轮廓的最小面积阈值
+        
+    返回值:
+        3: 检测到最右侧区域(6/7宽度处)有轮廓
+        4: 检测到中间右侧区域(5/7宽度处)有轮廓 
+        5: 检测到左侧右侧区域(4/7宽度处)有轮廓
+    """
+    # 定义三个右侧检测区域的起始X坐标
+    x_start_right1 = 6*WIDTH//7  # 最右侧区域起始X坐标(图像宽度6/7处)
+    x_start_right2 = 5*WIDTH//7  # 中间右侧区域起始X坐标(图像宽度5/7处)
+    x_start_right3 = 4*WIDTH//7  # 左侧右侧区域起始X坐标(图像宽度4/7处)
+    
+    # 提取三个右侧检测区域的ROI(Region of Interest)
+    img_rihg1 = img_by[:, x_start_right1:WIDTH]  # 最右侧检测区(宽度6/7到右边界)
+    img_riht2 = img_by[:, x_start_right2:x_start_right1]  # 中间右侧检测区(宽度5/7到6/7)
+    img_riht3 = img_by[:, x_start_right3:x_start_right2]  # 左侧右侧检测区(宽度4/7到5/7)
+    
+    # 将前两个区域放入列表用于循环处理
+    img_list = [img_rihg1, img_riht2, img_riht3]  # 按右到左顺序排列区域
+    
+    # 初始化三个中心点列表
+    center_list1 = []  # 存储最右侧区域中心点坐标
+    center_list2 = []  # 存储中间右侧区域中心点坐标
+    center_list3 = []  # 存储左侧右侧区域中心点坐标
+    
+    # 遍历前两个区域进行轮廓检测
+    for i, img in enumerate(img_list):
+        # 查找外部轮廓(仅检测最外层轮廓)
+        contours, _ = cv.findContours(img, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+        
+        # 处理每个检测到的轮廓
+        for contour in contours:
+            area = cv.contourArea(contour)
+            if area > area_threshold:  # 过滤面积小于阈值的噪声轮廓
+                # 轮廓多边形近似(减少轮廓点数)
+                peri = cv.arcLength(contour, True)
+                approx = cv.approxPolyDP(contour, 0.02 * peri, True)
+
+                # 获取轮廓的包围盒参数
+                x, y, w, h = cv.boundingRect(approx)
+                
+                # 计算轮廓中心点(相对于检测区域局部坐标系)
+                x_mid = x + w // 2
+                y_mid = y + h // 2
+                
+                # 转换到原图坐标系并绘制中心点
+                global_x = x_start_right1 + x_mid  # X全局坐标 = 区域起始X + 局部X
+                global_y = y_mid  # Y全局坐标 = 区域起始Y + 局部Y
+                cv.circle(img_copy, (global_x, global_y), 5, (0, 0, 255), -1)  # 绘制红色标记点
+                
+                # 根据当前处理区域存储中心点
+                if i == 0:  # 最右侧区域
+                    center_list1.append([global_x, global_y])
+                elif i == 1:  # 中间右侧区域
+                    center_list2.append([global_x, global_y])
+                else:  # 左侧右侧区域
+                    center_list3.append([global_x, global_y])
+    
+    # 根据检测结果返回不同状态码
+    if len(center_list1) > 0:  # 最右侧区域有有效轮廓
+        return 3
+    elif len(center_list2) > 0:  # 中间右侧区域有有效轮廓
+        return 4
+    elif len(center_list3) > 0:  # 左侧右侧区域有有效轮廓
+        return 5
+              
         
         
         
