@@ -21,6 +21,7 @@ def follow_line(img_by, img_copy, HEIGHT, WIDTH, area_threshold, e_threshold):
     x_start_left = 0            # 左侧区域起始X坐标
     x_start_center = WIDTH//3   # 中间区域起始X坐标
     y_start = 2*HEIGHT//5        # 统一垂直起始位置（图像高度40%处）
+    state = 0  # 初始状态：直行
 
     # 定义检测区域ROI（高度范围：40%-60%）
     img_left = img_by[2*HEIGHT//5:3*HEIGHT//5, 0:WIDTH//3]         # 左侧检测区（宽度前1/3）
@@ -34,7 +35,7 @@ def follow_line(img_by, img_copy, HEIGHT, WIDTH, area_threshold, e_threshold):
     start_list = [(x_start_left, y_start), (x_start_center, y_start), (x_start_right, y_start)]
 
     # 多区域轮廓处理
-    for i in range(3):
+    for i in range(3):  # 遍历左、中、右三个区域
         img = img_list[i]
         # 查找外部轮廓（仅检测最外层轮廓）
         contours, _ = cv.findContours(img, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
@@ -59,18 +60,26 @@ def follow_line(img_by, img_copy, HEIGHT, WIDTH, area_threshold, e_threshold):
                 cv.circle(img_copy, (global_x, global_y), 5, (0, 0, 255), -1)  # 红色标记点
                 center_list.append([global_x, global_y])  # 记录全局坐标
 
+    # 计算左右区域与中间区域的偏差
+    error1 = center_list[0][0] - center_list[1][0]  # 左-中
+    error2 = center_list[1][0] - center_list[2][0]  # 中-右
+    error  = (error1 + error2) // 2  # 平均误差
+    # 输出调试信息
+    print(f"左-中: {error1}, 中-右: {error2}")
+    # 决策判断
+    if error > e_threshold:  # 右转
+        state = 1
+    elif error < -e_threshold:  # 左转
+        state = -1
+    else:  # 直行
+        state = 0
+    
     # 横向位置偏差计算
-    error1 = center_list[0][1] - center_list[1][1]  # 左区与中区中心点纵向差
-    error2 = center_list[1][1] - center_list[2][1]  # 中区与右区中心点纵向差
-    error = (error1 + error2) / 2  # 平均偏差值
-
-    # 控制逻辑判断（在小车朝图像向左前进的情况下）
-    if abs(error) < e_threshold:  # 偏差在允许范围内
-        return 0   # 维持直行
-    elif error > e_threshold:     # 整体向左偏移（需要右转修正）
-        return 1   
-    elif error < -e_threshold:    # 整体向右偏移（需要左转修正）
-        return -1  
+    if len(center_list) == 3:  # 确保有三个有效点
+       return (center_list[0][1], center_list[1][1], center_list[2][1], 
+               (center_list[0][1] + center_list[1][1] + center_list[2][1]) // 3, state)  # 返回三个点的Y坐标和平均值
+    else:
+        return (None, None, None)  # 无有效点时返回None
 
 def get_signal(img_by,img_copy, HEIGHT, WIDTH, h_threshold, v_threshold, area_threshold):
     """特殊信号检测函数
@@ -122,7 +131,9 @@ def get_signal(img_by,img_copy, HEIGHT, WIDTH, h_threshold, v_threshold, area_th
             
             # 三次有效匹配触发信号
             if count % 3 == 0:  
-                return 2 
+                return 2
+            else:
+                return None 
 
 def adjust_position(img_by, img_copy, HEIGHT, WIDTH, area_threshold):
     """

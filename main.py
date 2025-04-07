@@ -20,6 +20,12 @@ while True:
     
     follow_return = ut.follow_line(img_canny, img_copy, HEIGHT, WIDTH, 500, 15)
     signal_return = ut.get_signal(img_canny, img_copy, HEIGHT, WIDTH, 15, 15)
+    print(follow_return)
+    if signal_return != None:
+        print(signal_return)
+        adjust_return = ut.adjust_position(img_canny, img_copy, HEIGHT, WIDTH, 500)
+        if adjust_return!= None:
+            print(adjust_return)
     
     cv.imshow("Result", img_copy)
     
