@@ -100,7 +100,7 @@ def get_signal(img_by,img_copy, HEIGHT, WIDTH, h_threshold, v_threshold, area_th
     
     # 上部验证区参数
     y_up_start = 4*HEIGHT//5  # 上部区域垂直起始（图像高度80%处）
-    img_upper = img_by[y_up_start, :x_start+WIDTH//15]  # 上部检测区（单行像素，宽同中央区）
+    img_upper = img_by[y_up_start:, :x_start+WIDTH//15]  # 上部检测区（单行像素，宽同中央区）
 
     # 中央区角点检测
     corners = cv.cornerHarris(img_center, 2, 3, 0.04)  # Harris角点检测
@@ -128,7 +128,60 @@ def get_signal(img_by,img_copy, HEIGHT, WIDTH, h_threshold, v_threshold, area_th
             if abs(y_mid - global_corner[1]) < h_threshold and \
                 abs(x_mid - global_corner[0]) < v_threshold:
                 count += 1  # 符合条件时计数
-                time.sleep(0.5)  # 防止重复检测
+                time.sleep(1)  # 防止重复检测
+            
+            # 三次有效匹配触发信号
+            if count % 3 == 0:  
+                return 2
+            else:
+                return None 
+def get_signal_adjust(img_by,img_copy, HEIGHT, WIDTH, h_threshold, v_threshold, area_threshold):
+    """特殊信号检测函数
+    参数：
+        img_by       : 二值化输入图像
+        img_copy     : 用于绘制检测结果的彩色图像副本
+        HEIGHT/WIDTH : 图像尺寸
+        h_threshold  : 垂直方向匹配阈值
+        v_threshold  : 水平方向匹配阈值
+    返回值：
+        int: 当满足匹配条件时返回信号2
+    """
+    # 区域定义（中央特征点检测区 + 上部验证区）
+    y_start = 2*HEIGHT//5  # 中央区域垂直起始（图像高度40%处）
+    x_start = 7*WIDTH//15  # 中央区域水平起始（图像宽度46.6%处）
+    img_center = img_by[y_start:y_start+HEIGHT//5, x_start:x_start+WIDTH//15]  # 中央检测区（高1/5，宽1/15）
+    
+    # 上部验证区参数
+    y_up_start = 4*HEIGHT//5  # 上部区域垂直起始（图像高度80%处）
+    img_upper = img_by[y_up_start:, :x_start+WIDTH//15]  # 上部检测区（单行像素，宽同中央区）
+
+    # 中央区角点检测
+    corners = cv.cornerHarris(img_center, 2, 3, 0.04)  # Harris角点检测
+    corner = tuple(corners[0][::-1])  # 取第一个角点并转换坐标顺序(y,x)->(x,y)
+
+    # 坐标系转换（局部->全局）
+    global_corner = (corner[0]+x_start, corner[1]+y_start)  # 计算原图坐标
+    cv.circle(img_copy, (int(global_corner[0]), int(global_corner[1])), 5, (0,255,255), -1)  # 绘制黄色特征点
+
+    # 上部区域轮廓验证
+    count = 0  # 有效匹配计数器
+    contours, _ = cv.findContours(img_upper, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+    for contour in contours:
+        area = cv.contourArea(contour)
+        if area > area_threshold:  # 过滤无效小轮廓
+            # 轮廓近似处理
+            peri = cv.arcLength(contour, True)
+            approx = cv.approxPolyDP(contour, 0.02*peri, True)
+            x, y, w, h = cv.boundingRect(approx)
+            
+            # 计算轮廓中心
+            x_mid, y_mid = x+w//2, y+h//2
+            
+            # 双阈值匹配验证
+            if abs(y_mid - global_corner[1]) < h_threshold and \
+                abs(x_mid - global_corner[0]) < v_threshold:
+                count += 1  # 符合条件时计数
+                time.sleep(0.2)  # 防止重复检测
             
             # 三次有效匹配触发信号
             if count % 3 == 0:  
@@ -163,7 +216,7 @@ def adjust_position(img_by, img_copy, HEIGHT, WIDTH, area_threshold):
     y1, y2, y3, y_mean, state = follow_line(img_by, img_copy, HEIGHT, WIDTH, area_threshold, 15)
     
     # 检测特殊信号
-    signal_return = get_signal(img_by, img_copy, HEIGHT, WIDTH, 15, 15, area_threshold)
+    signal_return = get_signal_adjust(img_by, img_copy, HEIGHT, WIDTH, 15, 15, area_threshold)
     
     # 优先处理特殊信号
     if signal_return == 2:

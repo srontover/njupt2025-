@@ -21,9 +21,15 @@ ser = serial.Serial(
 )
 
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (WIDTH, HEIGHT), "format":"RGB888"})
-                                                    
-picam2.configure(config)
+video_config = picam2.create_video_configuration(
+    main={"size": (WIDTH, HEIGHT), "format": "RGB888"},  # 主流分辨率与格式
+    lores={"size": (WIDTH, HEIGHT), "format": "YUV420"},    # 可选低分辨率流
+    display="lores",                                   # 预览使用低分辨率流
+    encode="main",                                     # 编码使用主流                   # 水平翻转
+    buffer_count=4,                                    # 缓冲区数量（默认3）
+    queue=False                                        # 禁用帧队列（减少延迟）
+)
+picam2.configure(video_config)
 picam2.start()
 
 while True:
@@ -46,28 +52,31 @@ while True:
         # 'b' 表示1字节有符号整数（-128~127），用于状态值
         # 'H' 表示2字节无符号整数（0~65535），用于y坐标均值
         data = struct.pack('>bH', follow_return[4], int(follow_return[3]))
-        ser.write(data)  # 发送二进制数据包（总长度3字节）
+        ser.write(data)# 发送二进制数据包（总长度3字节）
+        print(f'follow_ser: {data}')
     else:
         ser.write(b"none\n")
+        print(f"follow_ser: {b"none\n"}")
     
         
     if signal_return == 2:
         # 发送单字节数值信号（0x02）
-        ser.write(bytes([2]))  # bytes([2]) 等效于 b'\x02'
+        ser.write(bytes([2]))# bytes([2]) 等效于 b'\x02'
+        print(f"signal_return: {bytes([2])}")
         time.sleep(5)
         while True:
             adjust_return = ut.adjust_position(img_canny, img_copy, HEIGHT, WIDTH, 500)
             if adjust_return == 2:
                 # 发送调整完成信号（0x02）
                 ser.write(bytes([2]))
+                print(f"adjust_return: {bytes([2])}")
                 break
             if adjust_return[4] is not None:
                 # 持续发送调整过程中的状态数据
                 data = struct.pack('>bH', adjust_return[4], int(adjust_return[3]))
                 ser.write(data)
+                print(f"adjust_return: {data}")
             
-            
-    
     cv.imshow("Result", img_copy)
     
         
